@@ -5,17 +5,16 @@ import matplotlib
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-import numpy as np
-import mne
-from scipy import signal
-from scipy.signal import butter, filtfilt, firwin
+from .signal_model import *
 
 font = {'size': 7}
-
 matplotlib.rc('font', **font)
 
 
 class AppWindow(QMainWindow):
+    """
+    This is the View-Controller part of MVC app
+    """
     def __init__(self):
         QMainWindow.__init__(self)
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -136,8 +135,41 @@ class AppWindow(QMainWindow):
 
         self.setFixedSize(800, 500)
 
-        self.signal_dataframe = None
+        self.signal = None
 
+    def refresh(self):
+        """
+        Takes all info needed from the Model and refreshes the window according to it.
+        """
+        # Get characteristics of the signal
+        self.shift_label.setText("Mean: %.4f" % self.signal.signal_mean)
+
+        # Refresh the graph
+        emgz_signal = self.signal.signal()
+        self.axes.cla()
+        self.axes.plot(emgz_signal, 'b-')
+        self.signal_canvas.setFont(QFont("normal", 12))
+        self.signal_canvas.draw()
+
+    # Toolbox button slots
+    def detrend(self):
+        self.signal.detrend()
+        self.refresh()
+
+    def rectify(self):
+        self.signal.rectify()
+        self.refresh()
+
+    def filter_apply(self):
+        cutoff = int(self.filter_freq_edit.text())
+        btype = "lowpass" if self.filter_low_button.isChecked() else "highpass"
+        order = int(self.filter_order_edit.text())
+
+        if self.filter_iir_button.isChecked():
+            self.signal.filter(btype=btype, cutoff=cutoff, order=order)
+            self.refresh()
+
+    # Toolbox line edits slots
     def frequency_changed(self, text):
         if len(text) > 0 and not text[-1].isdigit():
             self.filter_freq_edit.setText(self.filter_freq_edit.text()[:-1])
@@ -146,63 +178,18 @@ class AppWindow(QMainWindow):
         if len(text) > 0 and not text[-1].isdigit():
             self.filter_order_edit.setText(self.filter_order_edit.text()[:-1])
 
+    # Menu bar buttons slots
     def file_open(self):
         dlg = QFileDialog()
         dlg.setFileMode(QFileDialog.AnyFile)
         dlg.setFilter("*.edf")
         if dlg.exec():
             signal_filename = dlg.selectedFiles()[0]
-            signal_data = mne.io.read_raw_edf(signal_filename, preload=True)
-            self.signal_dataframe = signal_data.to_data_frame()
-            self.signal_dataframe['time'] = self.signal_dataframe.index.values
+            self.signal = SignalModel(signal_filename)
 
             # After opening of a new signal data we should redraw it and refresh statistics
-            self.signal_redraw()
-            self.toolbox_refresh()
+            self.refresh()
             self.shift_label.setVisible(True)
-
-    def filter_apply(self):
-        cutoff = int(self.filter_freq_edit.text())
-        btype = "lowpass" if self.filter_low_button.isChecked() else "highpass"
-        order = int(self.filter_order_edit.text())
-
-        if self.filter_iir_button.isChecked():
-            emgz_signal = self.signal_dataframe['EMGZ'].values
-            time = self.signal_dataframe['time'].values
-            # Take average difference in time between measurements as given in milliseconds so as to get frequency
-            frequency = 1 / (np.mean(np.diff(time)) * 0.001)
-            # Nyquist frequency
-            nyq = 0.5 * frequency
-            normal_cutoff = cutoff / nyq
-            b, a = butter(order, normal_cutoff, btype=btype)
-            filtered = filtfilt(b, a, emgz_signal)
-            self.signal_dataframe['EMGZ'] = filtered
-            self.signal_redraw()
-            print("FILTERED")
-
-    def toolbox_refresh(self):
-        # Refresh all the calculated characteristics of the signal
-        self.signal_mean = np.mean(self.signal_dataframe['EMGZ'])
-        self.shift_label.setText("Mean: %.4f" % self.signal_mean)
-
-    def signal_redraw(self):
-        # Refresh the graph
-        emgz_signal = self.signal_dataframe['EMGZ']
-        self.axes.cla()
-        self.axes.plot(emgz_signal, 'b-')
-        self.signal_canvas.setFont(QFont("normal", 12))
-        self.signal_canvas.draw()
-
-    def detrend(self):
-        emgz_signal = self.signal_dataframe['EMGZ']
-        self.signal_dataframe['EMGZ'] = signal.detrend(emgz_signal.values)
-        self.signal_redraw()
-        self.toolbox_refresh()
-
-    def rectify(self):
-        emgz_signal = self.signal_dataframe['EMGZ']
-        self.signal_dataframe['EMGZ'] = np.abs(emgz_signal)
-        self.signal_redraw()
 
     def file_quit(self):
         self.close()
