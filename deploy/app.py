@@ -142,7 +142,7 @@ class AppWindow(QMainWindow):
         Takes all info needed from the Model and refreshes the window according to it.
         """
         # Get characteristics of the signal
-        self.shift_label.setText("Mean: %.4f" % self.signal.signal_mean)
+        self.shift_label.setText("Mean: %.4f" % self.signal.signal_mean())
 
         # Refresh the graph
         emgz_signal = self.signal.signal()
