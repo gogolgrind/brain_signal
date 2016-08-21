@@ -2,6 +2,7 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
 import matplotlib
+from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -9,6 +10,7 @@ from .signal_model import *
 
 font = {'size': 7}
 matplotlib.rc('font', **font)
+plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
 
 
 class AppWindow(QMainWindow):
@@ -43,7 +45,7 @@ class AppWindow(QMainWindow):
 
         # Group of elements related to constant shift of the signal
         self.shift_groupbox = QGroupBox("Remove constant shift")
-        self.shift_group_layout = QVBoxLayout()
+        self.shift_group_layout = QHBoxLayout()
         self.shift_group_layout.setAlignment(Qt.AlignLeft)
         self.signal_mean = 0.
         self.shift_label = QLabel("Mean: %.4f" % self.signal_mean)
@@ -51,8 +53,8 @@ class AppWindow(QMainWindow):
         self.shift_button = QPushButton("Process")
         self.shift_button.setFixedSize(100, 25)
         self.shift_button.clicked.connect(self.detrend)
-        self.shift_group_layout.addWidget(self.shift_label)
-        self.shift_group_layout.addWidget(self.shift_button)
+        self.shift_group_layout.addWidget(self.shift_button, 1, Qt.AlignVCenter | Qt.AlignLeft)
+        self.shift_group_layout.addWidget(self.shift_label, 0, Qt.AlignBottom | Qt.AlignRight)
         self.shift_groupbox.setLayout(self.shift_group_layout)
 
         # Group of elements related to rectification of the signal
@@ -85,9 +87,11 @@ class AppWindow(QMainWindow):
         self.filter_freq_layout = QHBoxLayout()
         self.filter_freq_label = QLabel("Frequency: ")
         self.filter_freq_edit = QLineEdit()
+        self.filter_freq_units = QLabel("Hz")
         self.filter_freq_edit.textChanged.connect(self.frequency_changed)
         self.filter_freq_layout.addWidget(self.filter_freq_label)
         self.filter_freq_layout.addWidget(self.filter_freq_edit)
+        self.filter_freq_layout.addWidget(self.filter_freq_units)
         self.filter_freq_widget.setLayout(self.filter_freq_layout)
         self.filter_group_layout.addWidget(self.filter_freq_widget)
 
@@ -96,9 +100,11 @@ class AppWindow(QMainWindow):
         self.filter_order_layout = QHBoxLayout()
         self.filter_order_label = QLabel("Order: ")
         self.filter_order_edit = QLineEdit()
+        self.filter_order_units = QLabel("operations")
         self.filter_order_edit.textChanged.connect(self.order_changed)
         self.filter_order_layout.addWidget(self.filter_order_label)
         self.filter_order_layout.addWidget(self.filter_order_edit)
+        self.filter_order_layout.addWidget(self.filter_order_units)
         self.filter_order_widget.setLayout(self.filter_order_layout)
         self.filter_group_layout.addWidget(self.filter_order_widget)
 
@@ -114,9 +120,16 @@ class AppWindow(QMainWindow):
         self.filter_group_layout.addWidget(self.filter_ir_widget)
 
         # Apply configured filter button
+        self.apply_reset_widget = QWidget()
+        self.apply_reset_layout = QHBoxLayout()
         self.apply_filter_button = QPushButton("Apply")
         self.apply_filter_button.clicked.connect(self.filter_apply)
-        self.filter_group_layout.addWidget(self.apply_filter_button)
+        self.reset_signal_button = QPushButton("Reset")
+        self.reset_signal_button.clicked.connect(self.signal_reset)
+        self.apply_reset_layout.addWidget(self.apply_filter_button)
+        self.apply_reset_layout.addWidget(self.reset_signal_button)
+        self.apply_reset_widget.setLayout(self.apply_reset_layout)
+        self.filter_group_layout.addWidget(self.apply_reset_widget)
 
         self.filter_groupbox.setLayout(self.filter_group_layout)
 
@@ -146,8 +159,13 @@ class AppWindow(QMainWindow):
 
         # Refresh the graph
         emgz_signal = self.signal.signal()
+        timestamps = self.signal.time()
+
         self.axes.cla()
-        self.axes.plot(emgz_signal, 'b-')
+        self.axes.set_ylabel('Voltage, nV')
+        self.axes.set_xlabel('Time, seconds')
+        self.axes.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        self.axes.plot(timestamps, emgz_signal, 'b-')
         self.signal_canvas.setFont(QFont("normal", 12))
         self.signal_canvas.draw()
 
@@ -161,18 +179,23 @@ class AppWindow(QMainWindow):
         self.refresh()
 
     def filter_apply(self):
-        cutoff = int(self.filter_freq_edit.text())
+        cutoff = float(self.filter_freq_edit.text()) / 1000
         btype = "lowpass" if self.filter_low_button.isChecked() else "highpass"
         order = int(self.filter_order_edit.text())
+        impulse_response = "iir" if self.filter_iir_button.isChecked() else "fir"
 
-        if self.filter_iir_button.isChecked():
-            self.signal.filter(btype=btype, cutoff=cutoff, order=order)
-            self.refresh()
+        self.signal.filter(impulse_response=impulse_response, btype=btype, cutoff=cutoff, order=order)
+        self.refresh()
+
+    def signal_reset(self):
+        self.signal.reset()
+        self.refresh()
 
     # Toolbox line edits slots
     def frequency_changed(self, text):
         if len(text) > 0 and not text[-1].isdigit():
-            self.filter_freq_edit.setText(self.filter_freq_edit.text()[:-1])
+            if text[-1] != '.' or text.count('.') > 1:
+                self.filter_freq_edit.setText(self.filter_freq_edit.text()[:-1])
 
     def order_changed(self, text):
         if len(text) > 0 and not text[-1].isdigit():

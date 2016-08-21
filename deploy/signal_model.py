@@ -3,6 +3,7 @@ import numpy as np
 
 from scipy import signal
 from scipy.signal import butter, filtfilt, firwin
+import peakutils
 
 
 class SignalModel:
@@ -17,7 +18,13 @@ class SignalModel:
         signal_data = mne.io.read_raw_edf(filename, preload=True)
         self.dataframe = signal_data.to_data_frame()
         self.reset()
-        self.dataframe['time'] = self.dataframe.index.values
+        self.dataframe['time'] = self.dataframe.index.values / 1000000
+
+    def time(self):
+        """
+        :return: Timestamps of an experiment given in seconds
+        """
+        return self.dataframe['time']
 
     def signal(self):
         """
@@ -59,7 +66,7 @@ class SignalModel:
         emgz_signal = self.dataframe['processed']
         time = self.dataframe['time'].values
         # Take average difference in time between measurements as given in milliseconds so as to get frequency
-        frequency = 1 / (np.mean(np.diff(time)) * 0.001)
+        frequency = 1 / (np.mean(np.diff(time)) * 1000)
         # Nyquist frequency
         nyq = 0.5 * frequency
         normal_cutoff = cutoff / nyq
@@ -68,6 +75,14 @@ class SignalModel:
             filtered = filtfilt(b, a, emgz_signal)
             self.dataframe['processed'] = filtered
         elif impulse_response == "fir":
-            b = firwin(1001, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
+            b = firwin(order+1, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
             filtered = filtfilt(b, 1.0, emgz_signal)
             self.dataframe['processed'] = filtered
+
+    def find_peaks(self, threshold=0.001, min_dist=1):
+        """
+        :param threshold:
+        :param min_dist:
+        :return: a 1-d np.array of indices where peaks are located
+        """
+        return peakutils.indexes(self.dataframe['processed'], thres=threshold, min_dist=min_dist)
