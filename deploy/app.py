@@ -358,7 +358,7 @@ class AppWindow(QMainWindow):
         dlg = QFileDialog()
         dlg.setFileMode(QFileDialog.AnyFile)
         dlg.setFilter("*.edf")
-        if dlg.exec():
+        if dlg.exec_():
             signal_filename = dlg.selectedFiles()[0]
         else:
             return
