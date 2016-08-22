@@ -10,6 +10,7 @@ class SignalModel:
     """
     This is the Model part of MVC app
     """
+
     def __init__(self, filename):
         """
         Opens a file with filename given and stores data from it as pandas.Dataframe
@@ -19,6 +20,8 @@ class SignalModel:
         self.dataframe = signal_data.to_data_frame()
         self.reset()
         self.dataframe['time'] = self.dataframe.index.values / 1000000
+        self.peak_indices = None
+        self.onset_indices = None
 
     def time(self):
         """
@@ -75,14 +78,74 @@ class SignalModel:
             filtered = filtfilt(b, a, emgz_signal)
             self.dataframe['processed'] = filtered
         elif impulse_response == "fir":
-            b = firwin(order+1, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
+            b = firwin(order + 1, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
             filtered = filtfilt(b, 1.0, emgz_signal)
             self.dataframe['processed'] = filtered
 
     def find_peaks(self, threshold=0.001, min_dist=1):
         """
-        :param threshold:
-        :param min_dist:
-        :return: a 1-d np.array of indices where peaks are located
+        Parameters
+        ----------
+        threshold: float. The minimum amplitude of peaks to be detected.
+        min_dist: int constant. Minimum distance between each detected peak.
+
+        Returns
+        -------
+        a 1-d numpy.array indices of signal peaks
+
+        Notes
+        -----
+
+        References
+        ----------
+            - https://pythonhosted.org/PeakUtils/tutorial_a.html
+
         """
-        return peakutils.indexes(self.dataframe['processed'], thres=threshold, min_dist=min_dist)
+        self.peak_indices = peakutils.indexes(self.dataframe['processed'], thres=threshold, min_dist=min_dist)
+
+    def reset_peaks(self):
+        self.peak_indices = None
+
+    def find_onset(self, threshold=0, n_above=1, n_below=0):
+        """Detects onset in data based on amplitude threshold.
+
+        Parameters
+        ----------
+        threshold: float. Minimum amplitude of `x` to detect.
+        n_above : int. Minimum number of continuous samples greater than or equal to
+            `threshold` to detect (but see the parameter `n_below`).
+        n_below : int. Minimum number of continuous samples below `threshold` that
+            will be ignored in the detection of `x` >= `threshold`.
+        Returns
+        -------
+        indices : 1D array_like [index_initial, index_final]
+
+        Notes
+        -----
+        You might have to tune the parameters according to the signal-to-noise
+        characteristic of the data.
+
+        References
+        ----------
+        .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectOnset.ipynb
+
+
+        """
+        x = self.dataframe['processed']
+        x = np.atleast_1d(x).astype('float64')
+        # deal with NaN's (by definition, NaN's are not greater than threshold)
+        x[np.isnan(x)] = -np.inf
+        # indices of data greater than or equal to threshold
+        indices = np.nonzero(x >= threshold)[0]
+        if indices.size:
+            # initial and final indexes of continuous data
+            indices = np.vstack((indices[np.diff(np.hstack((-np.inf, indices))) > n_below + 1],
+                                 indices[np.diff(np.hstack((indices, np.inf))) > n_below + 1])).T
+            # indexes of continuous data longer than or equal to n_above
+            indices = indices[indices[:, 1] - indices[:, 0] >= n_above - 1, :]
+        if not indices.size:
+            indices = np.array([])  # standardize indicess shape
+        self.onset_indices = indices
+
+    def reset_onset(self):
+        self.onset_indices = None
