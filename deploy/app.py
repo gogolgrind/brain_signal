@@ -23,14 +23,14 @@ class AppWindow(QMainWindow):
     """
 
     class ParameterWidget(QWidget):
-        def __init__(self, label, units, text_changed=None):
+        def __init__(self, parent, label, units, text_changed=None):
             """
             A widget holding a LineEdit with label describing it and label holding units of the parameter
             :param label (str).
             :param units (str).
             :param text_changed: a function invoked when the text in line edit has been changed
             """
-            super().__init__()
+            super().__init__(parent)
             self.layout = QHBoxLayout()
             self.label = QLabel(label)
             self.edit = QLineEdit()
@@ -73,19 +73,19 @@ class AppWindow(QMainWindow):
         self.tools_layout = QVBoxLayout(self.tools_widget)
         self.tools_layout.setAlignment(Qt.AlignTop)
 
-        # Group of elements related to zooming
-        self.zoom_groupbox = QGroupBox("Zoom signal")
-        self.zoom_group_layout = QHBoxLayout()
-        self.zoom_group_layout.setAlignment(Qt.AlignLeft)
-        self.zoom_in_button = QPushButton("Zoom in")
-        self.zoom_in_button.setFixedSize(100, 25)
-        self.zoom_in_button.clicked.connect(self.zoom_in)
-        self.zoom_out_button = QPushButton("Zoom out")
-        self.zoom_out_button.setFixedSize(100, 25)
-        self.zoom_out_button.clicked.connect(self.zoom_out)
-        self.zoom_group_layout.addWidget(self.zoom_in_button)
-        self.zoom_group_layout.addWidget(self.zoom_out_button)
-        self.zoom_groupbox.setLayout(self.zoom_group_layout)
+        # # Group of elements related to zooming
+        # self.zoom_groupbox = QGroupBox("Zoom signal")
+        # self.zoom_group_layout = QHBoxLayout()
+        # self.zoom_group_layout.setAlignment(Qt.AlignLeft)
+        # self.zoom_in_button = QPushButton("Zoom in")
+        # self.zoom_in_button.setFixedSize(100, 25)
+        # self.zoom_in_button.clicked.connect(self.zoom_in)
+        # self.zoom_out_button = QPushButton("Zoom out")
+        # self.zoom_out_button.setFixedSize(100, 25)
+        # self.zoom_out_button.clicked.connect(self.zoom_out)
+        # self.zoom_group_layout.addWidget(self.zoom_in_button)
+        # self.zoom_group_layout.addWidget(self.zoom_out_button)
+        # self.zoom_groupbox.setLayout(self.zoom_group_layout)
 
         # Group of elements related to constant shift of the signal
         self.shift_groupbox = QGroupBox("Remove constant shift")
@@ -127,12 +127,12 @@ class AppWindow(QMainWindow):
         self.filter_group_layout.addWidget(self.filter_type_widget)
 
         # Filter frequency editor
-        self.filter_freq_widget = AppWindow.ParameterWidget(
+        self.filter_freq_widget = AppWindow.ParameterWidget(self,
             "Frequency: ", "Hz", partial(self.sanitize_line_edit, allow_point=True))
         self.filter_group_layout.addWidget(self.filter_freq_widget)
 
         # Filter order editor
-        self.filter_order_widget = AppWindow.ParameterWidget(
+        self.filter_order_widget = AppWindow.ParameterWidget(self,
             "Order: ", "operations", partial(self.sanitize_line_edit, allow_point=False))
         self.filter_group_layout.addWidget(self.filter_order_widget)
 
@@ -163,9 +163,9 @@ class AppWindow(QMainWindow):
         # Peaks detection
         self.peaks_detect_groupbox = QGroupBox("Peaks detection")
         self.peaks_detect_layout = QVBoxLayout()
-        self.peaks_threshold_widget = AppWindow.ParameterWidget(
+        self.peaks_threshold_widget = AppWindow.ParameterWidget(self,
             "Threshold: ", "nV", partial(self.sanitize_line_edit, allow_point=True))
-        self.peaks_min_dist_widget = AppWindow.ParameterWidget(
+        self.peaks_min_dist_widget = AppWindow.ParameterWidget(self,
             "Min distance: ", "points", partial(self.sanitize_line_edit, allow_point=False))
 
         self.peaks_buttons_widget = QWidget()
@@ -185,9 +185,9 @@ class AppWindow(QMainWindow):
         # Onset detection
         self.onset_detect_groupbox = QGroupBox("Onset detection")
         self.onset_detect_layout = QVBoxLayout()
-        self.onset_threshold_widget = AppWindow.ParameterWidget("Threshold: ", "nV")
-        self.onset_above_nb_widget = AppWindow.ParameterWidget("Above: ", "points")
-        self.onset_below_nb_widget = AppWindow.ParameterWidget("Below: ", "points")
+        self.onset_threshold_widget = AppWindow.ParameterWidget(self, "Threshold: ", "nV")
+        self.onset_above_nb_widget = AppWindow.ParameterWidget(self, "Above: ", "points")
+        self.onset_below_nb_widget = AppWindow.ParameterWidget(self, "Below: ", "points")
 
         self.onset_buttons_widget = QWidget()
         self.onset_buttons_layout = QHBoxLayout()
@@ -206,7 +206,7 @@ class AppWindow(QMainWindow):
         self.onset_detect_groupbox.setLayout(self.onset_detect_layout)
 
         # Adding tools to the toolbox
-        self.tools_layout.addWidget(self.zoom_groupbox)
+        # self.tools_layout.addWidget(self.zoom_groupbox)
         self.tools_layout.addWidget(self.shift_groupbox)
         self.tools_layout.addWidget(self.rect_groupbox)
         self.tools_layout.addWidget(self.filter_groupbox)
