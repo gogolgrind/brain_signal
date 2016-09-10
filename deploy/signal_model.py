@@ -19,7 +19,7 @@ class SignalModel:
         signal_data = mne.io.read_raw_edf(filename, preload=True)
         self.dataframe = signal_data.to_data_frame()
         self.reset()
-        self.dataframe['time'] = self.dataframe.index.values / 1000000
+        self.dataframe['time'] = self.dataframe.index.values / 1000
         self.peak_indices = None
         self.onset_indices = None
 
@@ -29,36 +29,36 @@ class SignalModel:
         """
         return self.dataframe['time']
 
-    def signal(self):
+    def signal(self, channel="EMGZ"):
         """
         :return: The signal after applying all the processing steps
         """
-        return self.dataframe['processed']
+        return self.dataframe["p" + channel]
 
-    def reset(self):
+    def reset(self, channel="EMGZ"):
         """
         Restores the initial state of the signal
         """
-        self.dataframe['processed'] = self.dataframe['EMGZ']
+        self.dataframe["p" + channel] = self.dataframe[channel]
 
-    def signal_mean(self):
-        return np.mean(self.dataframe['processed'].values)
+    def signal_mean(self, channel="EMGZ"):
+        return np.mean(self.dataframe["p" + channel].values)
 
-    def detrend(self):
+    def detrend(self, channel="EMGZ"):
         """
         Removes constant shift of the signal
         """
-        emgz_signal = self.dataframe['processed']
-        self.dataframe['processed'] = signal.detrend(emgz_signal.values)
+        signal_data = self.dataframe["p" + channel]
+        self.dataframe["p" + channel] = signal.detrend(signal_data.values)
 
-    def rectify(self):
+    def rectify(self, channel="EMGZ"):
         """
         Replaces all the negative values of the signal with positive ones
         """
-        emgz_signal = self.dataframe['processed']
-        self.dataframe['processed'] = np.abs(emgz_signal)
+        signal_data = self.dataframe["p" + channel]
+        self.dataframe["p" + channel] = np.abs(signal_data)
 
-    def filter(self, impulse_response="iir", btype="lowpass", cutoff=8, order=2):
+    def filter(self, impulse_response="iir", btype="lowpass", cutoff=8, order=2, channel="EMGZ"):
         """
         Filters the signal by frequency
         :param impulse_response: either "iir" or "fir" (infinite and finite impulse response)
@@ -66,7 +66,7 @@ class SignalModel:
         :param cutoff: cutoff frequency (in Hz)
         :param order:
         """
-        emgz_signal = self.dataframe['processed']
+        signal_data = self.dataframe["p" + channel]
         time = self.dataframe['time'].values
         # Take average difference in time between measurements as given in milliseconds so as to get frequency
         frequency = 1 / (np.mean(np.diff(time)) * 1000)
@@ -75,14 +75,14 @@ class SignalModel:
         normal_cutoff = cutoff / nyq
         if impulse_response == "iir":
             b, a = butter(order, normal_cutoff, btype=btype)
-            filtered = filtfilt(b, a, emgz_signal)
-            self.dataframe['processed'] = filtered
+            filtered = filtfilt(b, a, signal_data)
+            self.dataframe["p" + channel] = filtered
         elif impulse_response == "fir":
             b = firwin(order + 1, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
-            filtered = filtfilt(b, 1.0, emgz_signal)
-            self.dataframe['processed'] = filtered
+            filtered = filtfilt(b, 1.0, signal_data)
+            self.dataframe["p" + channel] = filtered
 
-    def find_peaks(self, threshold=0.001, min_dist=1):
+    def find_peaks(self, threshold=0.001, min_dist=1, channel="EMGZ"):
         """
         Parameters
         ----------
@@ -101,12 +101,12 @@ class SignalModel:
             - https://pythonhosted.org/PeakUtils/tutorial_a.html
 
         """
-        self.peak_indices = peakutils.indexes(self.dataframe['processed'], thres=threshold, min_dist=min_dist)
+        self.peak_indices = peakutils.indexes(self.dataframe["p" + channel], thres=threshold, min_dist=min_dist)
 
     def reset_peaks(self):
         self.peak_indices = None
 
-    def find_onset(self, threshold=0, n_above=1, n_below=0):
+    def find_onset(self, threshold=0, n_above=1, n_below=0, channel="EMGZ"):
         """Detects onset in data based on amplitude threshold.
 
         Parameters
@@ -131,7 +131,7 @@ class SignalModel:
 
 
         """
-        x = self.dataframe['processed']
+        x = self.dataframe["p" + channel]
         x = np.atleast_1d(x).astype('float64')
         # deal with NaN's (by definition, NaN's are not greater than threshold)
         x[np.isnan(x)] = -np.inf
