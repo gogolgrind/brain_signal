@@ -1,5 +1,6 @@
 import mne
 import numpy as np
+import pandas as pd
 
 from scipy import signal
 from scipy.signal import butter, filtfilt, firwin
@@ -18,8 +19,11 @@ class SignalModel:
         """
         signal_data = mne.io.read_raw_edf(filename, preload=True)
         self.dataframe = signal_data.to_data_frame()
+        self.dataframe_dict = {}
+        for column in self.dataframe.columns:
+            self.dataframe_dict[column] = pd.DataFrame(self.dataframe[column])
         self.reset()
-        self.dataframe['time'] = self.dataframe.index.values / 1000
+        self.dataframe_dict['time'] = pd.DataFrame(self.dataframe.index.values / 1000)
         self.peak_indices = None
         self.onset_indices = None
 
@@ -27,36 +31,47 @@ class SignalModel:
         """
         :return: Timestamps of an experiment given in seconds
         """
-        return self.dataframe['time']
+        return self.dataframe_dict['time']
 
     def signal(self, channel="EMGZ"):
         """
         :return: The signal after applying all the processing steps
         """
-        return self.dataframe["p" + channel]
+        return self.dataframe_dict["p" + channel]
 
     def reset(self, channel="EMGZ"):
         """
         Restores the initial state of the signal
         """
-        self.dataframe["p" + channel] = self.dataframe[channel]
+        self.dataframe_dict["p" + channel] = self.dataframe_dict[channel]
+
+    def reject(self, start, end, channel="EMGZ"):
+        print(self.dataframe_dict["p" + channel].head())
+        print(self.dataframe_dict["p" + channel][:start].head())
+        print(self.dataframe_dict["p" + channel][end:].head())
+        vvv = pd.concat(
+            [self.dataframe_dict["p" + channel][:start],
+             self.dataframe_dict["p" + channel][end:]], axis=0)
+        self.dataframe_dict["p" + channel] = pd.concat(
+            [self.dataframe_dict["p" + channel][:start],
+             self.dataframe_dict["p" + channel][end:]], axis=0)
 
     def signal_mean(self, channel="EMGZ"):
-        return np.mean(self.dataframe["p" + channel].values)
+        return np.mean(self.dataframe_dict["p" + channel].values)
 
     def detrend(self, channel="EMGZ"):
         """
         Removes constant shift of the signal
         """
-        signal_data = self.dataframe["p" + channel]
-        self.dataframe["p" + channel] = signal.detrend(signal_data.values)
+        signal_data = self.dataframe_dict["p" + channel]
+        self.dataframe_dict["p" + channel] = signal.detrend(signal_data.values)
 
     def rectify(self, channel="EMGZ"):
         """
         Replaces all the negative values of the signal with positive ones
         """
-        signal_data = self.dataframe["p" + channel]
-        self.dataframe["p" + channel] = np.abs(signal_data)
+        signal_data = self.dataframe_dict["p" + channel]
+        self.dataframe_dict["p" + channel] = np.abs(signal_data)
 
     def filter(self, impulse_response="iir", btype="lowpass", cutoff=8, order=2, channel="EMGZ"):
         """
@@ -66,8 +81,8 @@ class SignalModel:
         :param cutoff: cutoff frequency (in Hz)
         :param order:
         """
-        signal_data = self.dataframe["p" + channel]
-        time = self.dataframe['time'].values
+        signal_data = self.dataframe_dict["p" + channel]
+        time = self.dataframe_dict['time'].values
         # Take average difference in time between measurements as given in milliseconds so as to get frequency
         frequency = 1 / (np.mean(np.diff(time)) * 1000)
         # Nyquist frequency
@@ -76,11 +91,11 @@ class SignalModel:
         if impulse_response == "iir":
             b, a = butter(order, normal_cutoff, btype=btype)
             filtered = filtfilt(b, a, signal_data)
-            self.dataframe["p" + channel] = filtered
+            self.dataframe_dict["p" + channel] = filtered
         elif impulse_response == "fir":
             b = firwin(order + 1, cutoff=normal_cutoff, window='hamming', pass_zero=(btype == "lowpass"))
             filtered = filtfilt(b, 1.0, signal_data)
-            self.dataframe["p" + channel] = filtered
+            self.dataframe_dict["p" + channel] = filtered
 
     def find_peaks(self, threshold=0.001, min_dist=1, channel="EMGZ"):
         """
@@ -101,7 +116,7 @@ class SignalModel:
             - https://pythonhosted.org/PeakUtils/tutorial_a.html
 
         """
-        self.peak_indices = peakutils.indexes(self.dataframe["p" + channel], thres=threshold, min_dist=min_dist)
+        self.peak_indices = peakutils.indexes(self.dataframe_dict["p" + channel], thres=threshold, min_dist=min_dist)
 
     def reset_peaks(self):
         self.peak_indices = None
@@ -131,7 +146,7 @@ class SignalModel:
 
 
         """
-        x = self.dataframe["p" + channel]
+        x = self.dataframe_dict["p" + channel]
         x = np.atleast_1d(x).astype('float64')
         # deal with NaN's (by definition, NaN's are not greater than threshold)
         x[np.isnan(x)] = -np.inf

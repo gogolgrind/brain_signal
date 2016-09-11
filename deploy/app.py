@@ -3,6 +3,8 @@ from PyQt4.QtGui import *
 
 import matplotlib
 from matplotlib import pyplot as plt
+import os
+from os.path import join, split
 
 from .signal_model import *
 from .widgets import *
@@ -68,7 +70,7 @@ class AppWindow(QMainWindow):
         self.tools_scroll_area.setWidgetResizable(True)
         self.tools_scroll_area.setWidget(self.tools_widget)
 
-        self.signal_widget = SignalWidget()
+        self.signal_widget = SignalWidget(join(os.getcwd(), "resources"))
         main_layout.addWidget(self.signal_widget)
         main_layout.addWidget(self.tools_scroll_area)
 
@@ -139,8 +141,8 @@ class AppWindow(QMainWindow):
             signal_filename = dlg.selectedFiles()[0]
         else:
             return
-        self.signal_widget.signal = SignalModel(signal_filename)
-        self.signal_widget.signal_frame = (0, self.signal_widget.signal.signal().shape[0] - 1)
+        self.signal_widget.load_signal(signal_filename)
+        # self.signal_widget.signal = SignalModel(signal_filename)
         self.refresh()
 
     def file_quit(self):
