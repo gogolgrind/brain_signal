@@ -9,6 +9,7 @@ from .signal_toolbox import SignalToolboxWidget
 
 TIME_STEP = 5
 
+
 class SignalWidget(QWidget):
     def __init__(self, resources_dir, channel="EMGZ"):
         super().__init__()
@@ -35,7 +36,7 @@ class SignalWidget(QWidget):
 
     def move_forward(self):
         print(self.signal.time()[0][0])
-        if self.signal_frame[1] == self.signal.time()[0][self.signal.signal().shape[0] - 1]:
+        if self.signal_frame[1] + TIME_STEP >= self.signal.time()[0][self.signal.signal().shape[0] - 1]:
             return
         print(self.signal_frame, self.signal.signal().shape)
         start, end = self.signal_frame
@@ -71,7 +72,11 @@ class SignalWidget(QWidget):
         start = int(self.signal_frame[0])
         start_point = np.where(timestamps >= start)[0][0]
         end = int(self.signal_frame[1])
-        end_point = min(np.where(timestamps >= end)[0][0], signal_data.shape[0])
+        rightmost_points = np.where(timestamps >= end)
+        if rightmost_points[0].shape[0] != 0:
+            end_point = min(rightmost_points[0][0], signal_data.shape[0])
+        else:
+            end_point = signal_data.shape[0]
 
         self.axes.cla()
         self.axes.set_ylabel('Voltage, nV')
