@@ -62,6 +62,10 @@ class SignalWidget(QWidget):
     def load_signal(self, filename):
         self.signal = SignalModel(filename)
 
+    def load_events(self, filename):
+        self.signal.set_events(filename)
+        self.refresh()
+
     def refresh(self):
         """
         Takes all info needed from the Model and refreshes the window according to it.
@@ -86,7 +90,7 @@ class SignalWidget(QWidget):
         y_limits = to_plot.min() * (1.2 if to_plot.min() < 0 else 0.8), \
                    to_plot.max() * (1.2 if to_plot.max() > 0 else 0.8)
         self.axes.set_ylim(*y_limits)
-        self.axes.set_xlim(start, start + TIME_STEP)
+        self.axes.set_xlim(start - 0.02, start + TIME_STEP + 0.02)
         self.axes.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
         self.axes.plot(timestamps[start_point:end_point], to_plot, 'b-')
 
@@ -97,10 +101,26 @@ class SignalWidget(QWidget):
                 self.axes.plot(timestamps[i], signal_data[i], 'ro')
 
         print(self.signal.onset_indices)
+        colors = ['r', 'g', 'b']
         if self.signal.onset_indices is not None:
-            colors = ['r', 'g', 'b']
             for n, i in enumerate(self.signal.onset_indices):
                 self.axes.axvline(timestamps[i][0], color=colors[n % 3], linestyle='--')
                 self.axes.axvline(timestamps[i][1], color=colors[n % 3], linestyle='--')
+
+        if self.signal.events is not None:
+            for time, event_type in self.signal.events:
+                if start <= time <= end:
+                    self.axes.axvline(time, color='r', linestyle='-')
+                    print(time)
+                    text_shift, alignment = (0.5, 'left') if time - start <= end - time else (- 0.5, 'right')
+                    self.axes.annotate(event_type,
+                                       xy=(time, y_limits[1] * 0.85),
+                                       xytext=(time + text_shift, y_limits[1] * 0.75),
+                                       horizontalalignment=alignment,
+                                       arrowprops=dict(
+                                           facecolor='black',
+                                           shrink=0.05,
+                                           width=2
+                                       ), )
 
         self.signal_canvas.draw()

@@ -26,6 +26,7 @@ class AppWindow(QMainWindow):
         # Menu bars
         self.file_menu = QMenu('&File', self)
         self.file_menu.addAction('&Open', self.file_open, Qt.CTRL + Qt.Key_O)
+        self.file_menu.addAction('Open &events', self.events_file_open, Qt.CTRL + Qt.Key_E)
         self.file_menu.addAction('&Quit', self.file_quit, Qt.CTRL + Qt.Key_Q)
         self.menuBar().addMenu(self.file_menu)
         self.help_menu = QMenu('&Help', self)
@@ -142,6 +143,18 @@ class AppWindow(QMainWindow):
         else:
             return
         self.signal_widget.load_signal(signal_filename)
+        # self.signal_widget.signal = SignalModel(signal_filename)
+        self.refresh()
+
+    def events_file_open(self):
+        dlg = QFileDialog()
+        dlg.setFileMode(QFileDialog.AnyFile)
+        dlg.setFilter("*.edf")
+        if dlg.exec_():
+            events_filename = dlg.selectedFiles()[0]
+        else:
+            return
+        self.signal_widget.load_events(events_filename)
         # self.signal_widget.signal = SignalModel(signal_filename)
         self.refresh()
 

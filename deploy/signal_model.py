@@ -6,6 +6,8 @@ from scipy import signal
 from scipy.signal import butter, filtfilt, firwin
 import peakutils
 
+from .utils.data import read_events_edf
+
 
 class SignalModel:
     """
@@ -22,10 +24,17 @@ class SignalModel:
         self.dataframe_dict = {}
         for column in self.dataframe.columns:
             self.dataframe_dict[column] = pd.DataFrame(self.dataframe[column])
-        self.reset()
+            self.reset(column)
         self.dataframe_dict['time'] = pd.DataFrame(self.dataframe.index.values / 1000)
+
         self.peak_indices = None
         self.onset_indices = None
+        self.events = None
+
+    def set_events(self, filename):
+        events_dataframe = read_events_edf(filename)
+        print(events_dataframe.index)
+        self.events = [(time, event) for time, event in zip(events_dataframe.index, events_dataframe.values)]
 
     def time(self):
         """
@@ -46,36 +55,31 @@ class SignalModel:
         self.dataframe_dict["p" + channel] = self.dataframe_dict[channel]
 
     def reject(self, start, end, channel="EMGZ"):
-        print(self.dataframe_dict["p" + channel].head())
-        print(self.dataframe_dict["p" + channel][:start].head())
-        print(self.dataframe_dict["p" + channel][end:].head())
-        vvv = pd.concat(
-            [self.dataframe_dict["p" + channel][:start],
-             self.dataframe_dict["p" + channel][end:]], axis=0)
         self.dataframe_dict["p" + channel] = pd.concat(
             [self.dataframe_dict["p" + channel][:start],
              self.dataframe_dict["p" + channel][end:]], axis=0)
 
     def signal_mean(self, channel="EMGZ"):
-        return np.mean(self.dataframe_dict["p" + channel].values)
+        return np.mean(self.dataframe_dict["p" + channel])
 
     def detrend(self, channel="EMGZ"):
         """
         Removes constant shift of the signal
         """
-        signal_data = self.dataframe_dict["p" + channel]
-        self.dataframe_dict["p" + channel] = signal.detrend(signal_data.values)
+        signal_data = self.dataframe_dict["p" + channel].values[:, 0]
+        self.dataframe_dict["p" + channel] = pd.DataFrame(signal.detrend(signal_data))
 
     def rectify(self, channel="EMGZ"):
         """
         Replaces all the negative values of the signal with positive ones
         """
-        signal_data = self.dataframe_dict["p" + channel]
-        self.dataframe_dict["p" + channel] = np.abs(signal_data)
+        signal_data = self.dataframe_dict["p" + channel].values
+        self.dataframe_dict["p" + channel] = pd.DataFrame(np.abs(signal_data))
 
     def filter(self, impulse_response="iir", btype="lowpass", cutoff=8, order=2, channel="EMGZ"):
         """
         Filters the signal by frequency
+        :param channel:
         :param impulse_response: either "iir" or "fir" (infinite and finite impulse response)
         :param btype: either "lowpass" or "highpass"
         :param cutoff: cutoff frequency (in Hz)
