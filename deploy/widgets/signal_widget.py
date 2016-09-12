@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from ..signal_model import *
 from .signal_toolbox import SignalToolboxWidget
 
-TIME_STEP = 5
+TIME_STEP = 100
 
 
 class SignalWidget(QWidget):
@@ -36,7 +36,7 @@ class SignalWidget(QWidget):
 
     def move_forward(self):
         print(self.signal.time()[0][0])
-        if self.signal_frame[1] + TIME_STEP >= self.signal.time()[0][self.signal.signal().shape[0] - 1]:
+        if self.signal_frame[1] + TIME_STEP >= self.signal.time()[self.signal.signal().shape[0] - 1][0]:
             return
         print(self.signal_frame, self.signal.signal().shape)
         start, end = self.signal_frame
@@ -71,8 +71,8 @@ class SignalWidget(QWidget):
         Takes all info needed from the Model and refreshes the window according to it.
         """
         # Refresh the graph
-        signal_data = self.signal.signal().values
-        timestamps = self.signal.time().values
+        signal_data = self.signal.signal()
+        timestamps = self.signal.time()
         start = int(self.signal_frame[0])
         start_point = np.where(timestamps >= start)[0][0]
         end = int(self.signal_frame[1])
@@ -97,17 +97,20 @@ class SignalWidget(QWidget):
         self.signal_canvas.setFont(QFont("normal", 12))
 
         if self.signal.peak_indices is not None:
+            print(self.signal.peak_indices)
             for i in self.signal.peak_indices:
                 self.axes.plot(timestamps[i], signal_data[i], 'ro')
 
         print(self.signal.onset_indices)
         colors = ['r', 'g', 'b']
         if self.signal.onset_indices is not None:
+            print(self.signal.onset_indices)
             for n, i in enumerate(self.signal.onset_indices):
                 self.axes.axvline(timestamps[i][0], color=colors[n % 3], linestyle='--')
                 self.axes.axvline(timestamps[i][1], color=colors[n % 3], linestyle='--')
 
         if self.signal.events is not None:
+            print(self.signal.events)
             for time, event_type in self.signal.events:
                 if start <= time <= end:
                     self.axes.axvline(time, color='r', linestyle='-')
