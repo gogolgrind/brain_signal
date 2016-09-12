@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from ..signal_model import *
 from .signal_toolbox import SignalToolboxWidget
 
-TIME_STEP = 100
+TIME_STEP = 5
 
 
 class SignalWidget(QWidget):
