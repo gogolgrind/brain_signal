@@ -1,6 +1,6 @@
 data/
 deploy/build
-deploy/emg/build
+build
 **/__pycache__/
 **/*.pyc
 .idea/
