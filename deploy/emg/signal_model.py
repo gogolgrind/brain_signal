@@ -6,7 +6,7 @@ from scipy import signal
 from scipy.signal import butter, filtfilt, firwin
 import peakutils
 
-from .utils.data import read_events_edf
+from emg.utils.data import read_events_edf
 
 
 class SignalModel:

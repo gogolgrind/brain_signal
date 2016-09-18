@@ -5,9 +5,10 @@ import matplotlib
 from matplotlib import pyplot as plt
 import os
 from os.path import join, split
+import sys
 
-from .signal_model import *
-from .widgets import *
+from emg.signal_model import *
+from emg.widgets import *
 
 font = {'size': 7}
 matplotlib.rc('font', **font)
@@ -160,6 +161,7 @@ class AppWindow(QMainWindow):
 
     def file_quit(self):
         self.close()
+        sys.exit()
 
     def help_menu(self):
         pass
